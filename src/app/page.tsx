@@ -27,16 +27,25 @@ const COLORS = {
   tempCool: '#4F8CA8'
 }
 
-const DEFAULT_USERNAME = 'JulioMCruz'
-const DEFAULT_SINCE_YEAR = 2024
+interface AppConfig {
+  sinceYear: number
+  defaultUsername: string
+}
+
+const FALLBACK_CONFIG: AppConfig = {
+  sinceYear: 2024,
+  defaultUsername: 'JulioMCruz'
+}
 
 export default function Home() {
-  const [username, setUsername] = useState(DEFAULT_USERNAME)
-  const [inputValue, setInputValue] = useState(DEFAULT_USERNAME)
-  const [sinceYear] = useState(DEFAULT_SINCE_YEAR)
+  const [config, setConfig] = useState<AppConfig | null>(null)
+  const [username, setUsername] = useState('')
+  const [inputValue, setInputValue] = useState('')
   const [graphData, setGraphData] = useState<GraphData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const sinceYear = config?.sinceYear ?? FALLBACK_CONFIG.sinceYear
 
   const loadGraph = useCallback(async (user: string, year: number) => {
     if (!user.trim()) return
@@ -68,8 +77,30 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    loadGraph(DEFAULT_USERNAME, sinceYear)
-  }, [loadGraph, sinceYear])
+    async function init() {
+      try {
+        const res = await fetch('/api/config')
+        if (res.ok) {
+          const cfg: AppConfig = await res.json()
+          setConfig(cfg)
+          setUsername(cfg.defaultUsername)
+          setInputValue(cfg.defaultUsername)
+          loadGraph(cfg.defaultUsername, cfg.sinceYear)
+        } else {
+          setConfig(FALLBACK_CONFIG)
+          setUsername(FALLBACK_CONFIG.defaultUsername)
+          setInputValue(FALLBACK_CONFIG.defaultUsername)
+          loadGraph(FALLBACK_CONFIG.defaultUsername, FALLBACK_CONFIG.sinceYear)
+        }
+      } catch {
+        setConfig(FALLBACK_CONFIG)
+        setUsername(FALLBACK_CONFIG.defaultUsername)
+        setInputValue(FALLBACK_CONFIG.defaultUsername)
+        loadGraph(FALLBACK_CONFIG.defaultUsername, FALLBACK_CONFIG.sinceYear)
+      }
+    }
+    init()
+  }, [loadGraph])
 
   const handleUsernameSubmit = useCallback(() => {
     const trimmed = inputValue.trim()
@@ -98,7 +129,7 @@ export default function Home() {
     outline: 'none'
   }
 
-  const repoCount = graphData ? graphData.nodes.filter(n => !n.isExternal).length : 0
+  const repoCount = graphData ? graphData.nodes.length : 0
 
   return (
     <main className="h-screen w-screen overflow-hidden relative" style={{ background: COLORS.bg }}>

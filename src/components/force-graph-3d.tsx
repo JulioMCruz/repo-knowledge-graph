@@ -35,7 +35,6 @@ interface GraphNode {
   opacity: number
   radius: number
   weight: number
-  isExternal?: boolean
   x?: number
   y?: number
   z?: number
@@ -78,10 +77,10 @@ function formatRelativeTime(dateString: string | null): string {
 }
 
 function getTemperatureLabel(temp: number): string {
-  if (temp >= 0.85) return 'Hot'
-  if (temp >= 0.6) return 'Warm'
-  if (temp >= 0.35) return 'Cooling'
-  if (temp >= 0.15) return 'Cool'
+  if (temp >= 1.0) return 'Hot'
+  if (temp >= 0.75) return 'Warm'
+  if (temp >= 0.5) return 'Cooling'
+  if (temp >= 0.25) return 'Cool'
   return 'Cold'
 }
 
@@ -107,7 +106,7 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [highlightNodes, setHighlightNodes] = useState<Set<string>>(new Set())
 
-  const userNodes = useMemo(() => data.nodes.filter(n => !n.isExternal), [data.nodes])
+  const userNodes = useMemo(() => data.nodes, [data.nodes])
 
   useEffect(() => {
     function updateDimensions() {
@@ -149,7 +148,6 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
   useEffect(() => {
     if (fgRef.current && data.nodes.length > 0) {
       const hottestNodes = [...data.nodes]
-        .filter(n => !n.isExternal)
         .sort((a, b) => (b.temperature * b.weight) - (a.temperature * a.weight))
       
       if (hottestNodes.length > 0) {
@@ -201,13 +199,11 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
     if (highlightNodes.size > 0 && !highlightNodes.has(node.id)) {
       return 0.15
     }
-    if (node.temperature >= 0.6) return 1.0
-    if (node.temperature >= 0.3) return 0.75
-    return 0.55
+    return node.opacity
   }, [highlightNodes, hoveredNode])
 
   const getNodeBloom = useCallback((node: GraphNode) => {
-    const baseBloom = node.temperature >= 0.6 ? 0.6 : 0.1
+    const baseBloom = node.temperature >= 0.75 ? 0.6 : 0.1
     if (hoveredNode?.id === node.id) {
       return baseBloom * 1.2
     }
@@ -248,7 +244,7 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
     
     const opacity = getNodeOpacity(n)
     const bloom = getNodeBloom(n)
-    const isHot = n.temperature >= 0.6
+    const isHot = n.temperature >= 0.75
     
     let nodeColor = n.color
     if (highlightNodes.size > 0 && !highlightNodes.has(n.id)) {
@@ -455,7 +451,7 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
           <div className="flex items-center gap-2" style={{ marginBottom: 12 }}>
             <div 
               className="w-2.5 h-2.5 rounded-full"
-              style={{ background: hoveredNode.color, boxShadow: hoveredNode.temperature >= 0.6 ? `0 0 6px ${hoveredNode.color}` : 'none' }}
+              style={{ background: hoveredNode.color, boxShadow: hoveredNode.temperature >= 0.75 ? `0 0 6px ${hoveredNode.color}` : 'none' }}
             />
             <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.muted }}>
               {getTemperatureLabel(hoveredNode.temperature)}

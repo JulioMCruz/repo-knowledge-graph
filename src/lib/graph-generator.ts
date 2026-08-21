@@ -35,9 +35,8 @@ export interface GraphNode {
   temperature: number
   color: string
   opacity: number
-  isExternal?: boolean
   isContribution?: boolean
-  relationship: 'owned' | 'org-member' | 'contributed' | 'external'
+  relationship: 'owned' | 'org-member' | 'contributed'
 }
 
 export interface GraphEdge {
@@ -59,7 +58,6 @@ export interface GraphData {
     ownedRepos: number
     orgRepos: number
     contributedRepos: number
-    externalNodes: number
     totalEdges: number
     missingCommitCounts: number
   }
@@ -82,57 +80,69 @@ const TEMP_COLORS = {
   cold: '#3A4F8C'
 }
 
-const TEMP_THRESHOLDS = {
-  hot: 0.85,
-  warm: 0.6,
-  cooling: 0.35,
-  cool: 0.15
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+const TEMP_DAYS = {
+  hot: 7,
+  warm: 30,
+  cooling: 90,
+  cool: 365
 }
 
 function calculateWeight(commits: number, stars: number, forks: number): number {
   return Math.log(1 + commits) + 1.2 * Math.log(1 + stars) + Math.log(1 + forks)
 }
 
-function calculateRadius(
-  weight: number,
-  minWeight: number,
-  maxWeight: number,
-  isExternal: boolean
-): number {
-  const minRadius = isExternal ? 2 : 4
-  const maxRadius = isExternal ? 6 : 14
-  
-  if (maxWeight === minWeight) return (minRadius + maxRadius) / 2
-  
-  const normalizedWeight = (weight - minWeight) / (maxWeight - minWeight)
-  return minRadius + Math.sqrt(normalizedWeight) * (maxRadius - minRadius)
+function calculateRadius(weight: number): number {
+  const minRadius = 4
+  const maxRadius = 14
+  const sqrtWeight = Math.sqrt(weight)
+  return Math.max(minRadius, Math.min(maxRadius, minRadius + sqrtWeight))
 }
 
-function calculateTemperature(pushedAt: string | null, sinceDate: Date, now: Date): number {
-  if (!pushedAt) return 0
+type TempCategory = 'hot' | 'warm' | 'cooling' | 'cool' | 'cold'
+
+function calculateTemperatureCategory(pushedAt: string | null, sinceDate: Date, now: Date): TempCategory {
+  if (!pushedAt) return 'cold'
   
   const pushDate = new Date(pushedAt)
-  if (pushDate < sinceDate) return 0
+  if (pushDate < sinceDate) return 'cold'
   
-  const windowMs = now.getTime() - sinceDate.getTime()
   const ageMs = now.getTime() - pushDate.getTime()
+  const ageDays = ageMs / MS_PER_DAY
   
-  return Math.max(0, 1 - (ageMs / windowMs))
+  if (ageDays <= TEMP_DAYS.hot) return 'hot'
+  if (ageDays <= TEMP_DAYS.warm) return 'warm'
+  if (ageDays <= TEMP_DAYS.cooling) return 'cooling'
+  if (ageDays <= TEMP_DAYS.cool) return 'cool'
+  return 'cold'
 }
 
-function temperatureToColor(temperature: number): string {
-  if (temperature >= TEMP_THRESHOLDS.hot) return TEMP_COLORS.hot
-  if (temperature >= TEMP_THRESHOLDS.warm) return TEMP_COLORS.warm
-  if (temperature >= TEMP_THRESHOLDS.cooling) return TEMP_COLORS.cooling
-  if (temperature >= TEMP_THRESHOLDS.cool) return TEMP_COLORS.cool
-  return TEMP_COLORS.cold
+function tempCategoryToValue(category: TempCategory): number {
+  switch (category) {
+    case 'hot': return 1.0
+    case 'warm': return 0.75
+    case 'cooling': return 0.5
+    case 'cool': return 0.25
+    case 'cold': return 0.1
+  }
 }
 
-function temperatureToOpacity(temperature: number, isExternal: boolean): number {
-  if (isExternal) return 0.55
-  if (temperature >= 0.6) return 1.0
-  if (temperature >= 0.3) return 0.85
-  return 0.55
+function temperatureToColor(category: TempCategory): string {
+  return TEMP_COLORS[category]
+}
+
+function temperatureToOpacity(category: TempCategory, isArchived: boolean): number {
+  if (isArchived) return 0.45
+  switch (category) {
+    case 'hot':
+    case 'warm':
+      return 1.0
+    case 'cooling':
+      return 0.85
+    case 'cool':
+    case 'cold':
+      return 0.55
+  }
 }
 
 function isRepoLive(repo: RawRepo, sinceDate: Date): boolean {
@@ -156,9 +166,10 @@ async function createNode(
     token
   )
   
-  const weight = calculateWeight(commits || 0, repo.stargazers_count, repo.forks_count)
-  const temperature = calculateTemperature(repo.pushed_at, sinceDate, now)
-  const isExternal = relationship === 'external'
+  const actualCommits = commits ?? 0
+  const weight = calculateWeight(actualCommits, repo.stargazers_count, repo.forks_count)
+  const tempCategory = calculateTemperatureCategory(repo.pushed_at, sinceDate, now)
+  const temperature = tempCategoryToValue(tempCategory)
   
   return {
     id: repo.full_name,
@@ -169,7 +180,7 @@ async function createNode(
     description: repo.description,
     stars: repo.stargazers_count,
     forks: repo.forks_count,
-    commits: commits || 0,
+    commits: actualCommits,
     commitsMissing: commits === null,
     pushedAt: repo.pushed_at,
     updatedAt: repo.updated_at,
@@ -181,11 +192,10 @@ async function createNode(
     language: repo.language,
     topics: repo.topics || [],
     weight,
-    radius: 0,
+    radius: calculateRadius(weight),
     temperature,
-    color: temperatureToColor(temperature),
-    opacity: temperatureToOpacity(temperature, isExternal),
-    isExternal,
+    color: temperatureToColor(tempCategory),
+    opacity: temperatureToOpacity(tempCategory, repo.archived),
     isContribution: relationship === 'contributed',
     relationship
   }
@@ -212,7 +222,6 @@ export async function generateGraph(options: GenerateOptions): Promise<GraphData
   let ownedCount = 0
   let orgCount = 0
   let contributedCount = 0
-  let externalCount = 0
   
   log('Fetching user repos...')
   const userRepos = await fetchUserRepos(username, token)
@@ -311,51 +320,7 @@ export async function generateGraph(options: GenerateOptions): Promise<GraphData
     await sleep(50)
   }
   
-  const forkTargets = new Set<string>()
-  for (const node of nodes) {
-    if (node.parentRepo && !nodeSet.has(node.parentRepo)) {
-      forkTargets.add(node.parentRepo)
-    }
-  }
-  
-  for (const parentFullName of forkTargets) {
-    const repo = await fetchRepoDetails(parentFullName, token)
-    if (!repo) continue
-    
-    nodeSet.add(parentFullName)
-    log(`Processing external: ${parentFullName}`)
-    const node = await createNode(repo, 'external', sinceDate, now, token)
-    if (node.commitsMissing) missingCommitCounts++
-    nodes.push(node)
-    externalCount++
-    
-    await sleep(50)
-  }
-  
   const validEdges = edges.filter(e => nodeSet.has(e.source) && nodeSet.has(e.target))
-  
-  const primaryNodes = nodes.filter(n => !n.isExternal)
-  const externalNodes = nodes.filter(n => n.isExternal)
-  
-  if (primaryNodes.length > 0) {
-    const weights = primaryNodes.map(n => n.weight)
-    const minWeight = Math.min(...weights)
-    const maxWeight = Math.max(...weights)
-    
-    for (const node of primaryNodes) {
-      node.radius = calculateRadius(node.weight, minWeight, maxWeight, false)
-    }
-  }
-  
-  if (externalNodes.length > 0) {
-    const weights = externalNodes.map(n => n.weight)
-    const minWeight = Math.min(...weights)
-    const maxWeight = Math.max(...weights)
-    
-    for (const node of externalNodes) {
-      node.radius = calculateRadius(node.weight, minWeight, maxWeight, true)
-    }
-  }
   
   log('Graph generation complete!')
   
@@ -371,7 +336,6 @@ export async function generateGraph(options: GenerateOptions): Promise<GraphData
       ownedRepos: ownedCount,
       orgRepos: orgCount,
       contributedRepos: contributedCount,
-      externalNodes: externalCount,
       totalEdges: validEdges.length,
       missingCommitCounts
     }
