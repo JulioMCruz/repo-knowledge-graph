@@ -37,7 +37,7 @@ jobs:
       - name: Generate graph data
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          USERNAME: ${{ github.event.inputs.username || 'JulioMCruz' }}
+          DEFAULT_USERNAME: ${{ github.event.inputs.username || 'JulioMCruz' }}
           SINCE_YEAR: ${{ github.event.inputs.since_year || '2024' }}
         run: npm run generate
       

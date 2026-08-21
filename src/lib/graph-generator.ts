@@ -72,7 +72,7 @@ export interface GenerateOptions {
   onProgress?: (message: string) => void
 }
 
-const DEFAULT_SINCE_YEAR = 2024
+export const DEFAULT_SINCE_YEAR = 2024
 
 const TEMP_COLORS = {
   hot: '#FF4A2A',

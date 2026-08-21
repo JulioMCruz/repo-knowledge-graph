@@ -5,9 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:with-data": "npm run generate && npm run build",
     "start": "next start",
     "lint": "eslint",
-    "generate": "tsx scripts/generate-default.ts",
+    "generate": "tsx scripts/prebuild.ts",
     "preview": "npm run build && npm run start"
   },
   "dependencies": {

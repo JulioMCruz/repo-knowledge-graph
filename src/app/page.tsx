@@ -22,18 +22,24 @@ const DEFAULT_SINCE_YEAR = 2024
 export default function Home() {
   const [username, setUsername] = useState(DEFAULT_USERNAME)
   const [inputValue, setInputValue] = useState(DEFAULT_USERNAME)
+  const [sinceYear] = useState(DEFAULT_SINCE_YEAR)
   const [graphData, setGraphData] = useState<GraphData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const loadGraph = useCallback(async (user: string) => {
+  const loadGraph = useCallback(async (user: string, year: number) => {
     if (!user.trim()) return
     
     setLoading(true)
     setError(null)
     
     try {
-      const response = await fetch(`/api/graph/${encodeURIComponent(user)}?sinceYear=${DEFAULT_SINCE_YEAR}`)
+      const staticUrl = `/data/${user.toLowerCase()}-${year}.json`
+      let response = await fetch(staticUrl)
+      
+      if (!response.ok) {
+        response = await fetch(`/api/graph/${encodeURIComponent(user)}?sinceYear=${year}`)
+      }
       
       if (!response.ok) {
         const data = await response.json()
@@ -51,26 +57,26 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    loadGraph(DEFAULT_USERNAME)
-  }, [loadGraph])
+    loadGraph(DEFAULT_USERNAME, sinceYear)
+  }, [loadGraph, sinceYear])
 
   const handleUsernameSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault()
     const trimmed = inputValue.trim()
     if (trimmed && trimmed !== username) {
-      loadGraph(trimmed)
+      loadGraph(trimmed, sinceYear)
     }
-  }, [inputValue, username, loadGraph])
+  }, [inputValue, username, sinceYear, loadGraph])
 
   const handleUsernameKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       const trimmed = inputValue.trim()
       if (trimmed && trimmed !== username) {
-        loadGraph(trimmed)
+        loadGraph(trimmed, sinceYear)
       }
     }
-  }, [inputValue, username, loadGraph])
+  }, [inputValue, username, sinceYear, loadGraph])
 
   return (
     <main className="h-screen w-screen overflow-hidden relative" style={{ background: '#07090D' }}>
@@ -115,7 +121,7 @@ export default function Home() {
               Loading @{inputValue}...
             </div>
             <div className="text-[#5C6570] text-xs font-mono">
-              Fetching repos since {DEFAULT_SINCE_YEAR}
+              Repos with activity since {sinceYear}
             </div>
           </div>
         </div>
@@ -131,7 +137,7 @@ export default function Home() {
               {error}
             </div>
             <button
-              onClick={() => loadGraph(username)}
+              onClick={() => loadGraph(username, sinceYear)}
               className="hud-panel px-4 py-2 text-xs font-mono hover:bg-[#1C2430] transition-colors"
               style={{ color: '#4F8CA8' }}
             >
@@ -147,7 +153,7 @@ export default function Home() {
             <div className="text-[#8B95A1] text-sm font-mono">Rendering...</div>
           </div>
         }>
-          <ForceGraph3DView data={graphData} sinceYear={DEFAULT_SINCE_YEAR} />
+          <ForceGraph3DView data={graphData} sinceYear={sinceYear} />
         </Suspense>
       )}
 
