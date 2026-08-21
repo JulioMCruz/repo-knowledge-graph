@@ -16,6 +16,10 @@ const ForceGraph3D = dynamic(() => import('react-force-graph-3d'), {
 interface ForceGraph3DViewProps {
   data: GraphData
   sinceYear: number
+  username: string
+  onUsernameChange: (value: string) => void
+  onUsernameSubmit: () => void
+  onUsernameBlur: () => void
 }
 
 interface GraphNode {
@@ -85,7 +89,14 @@ function getTemperatureLabel(temp: number): string {
   return 'Cold'
 }
 
-export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
+export function ForceGraph3DView({ 
+  data, 
+  sinceYear,
+  username,
+  onUsernameChange,
+  onUsernameSubmit,
+  onUsernameBlur
+}: ForceGraph3DViewProps) {
   const fgRef = useRef<{ 
     cameraPosition: (pos: { x: number; y: number; z: number }, lookAt?: { x: number; y: number; z: number }, ms?: number) => void
     scene: () => unknown
@@ -254,53 +265,104 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
     return mesh
   }, [getNodeOpacity, getNodeBloom, hoveredNode, highlightNodes])
 
+  const handleUsernameKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      onUsernameSubmit()
+    }
+  }, [onUsernameSubmit])
+
   const repoCount = data.nodes.filter(n => !n.isExternal).length
 
   return (
     <div ref={containerRef} className="relative w-full h-full" style={{ background: COLORS.bg }}>
-      <div className="absolute top-4 left-4 z-20 flex items-start gap-6">
-        <div className="flex flex-col gap-1">
-          <label 
-            style={{ 
-              fontFamily: 'IBM Plex Mono', 
-              fontSize: 10, 
-              textTransform: 'uppercase',
-              letterSpacing: '0.12em',
-              color: COLORS.faint 
-            }}
-          >
-            IN THIS GRAPH
-          </label>
-          <input
-            type="text"
-            placeholder="Find a repo"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="hud-panel px-3 py-2 focus:outline-none focus:ring-1"
-            style={{ 
-              width: 280, 
-              height: 40,
-              fontSize: 13,
-              fontFamily: 'IBM Plex Sans',
-              background: COLORS.glass,
-              borderColor: COLORS.line,
-              color: COLORS.paper
-            }}
-          />
-          {highlightNodes.size > 0 && (
-            <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint }}>
-              {highlightNodes.size} found
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Top HUD: MAP + IN THIS GRAPH + Count */}
+      <div className="absolute top-4 left-4 right-4 z-20 flex items-end justify-between">
+        <div className="flex items-end gap-6">
+          {/* MAP (username) */}
+          <div className="flex flex-col gap-1">
+            <label 
+              style={{ 
+                fontFamily: 'IBM Plex Mono', 
+                fontSize: 10, 
+                textTransform: 'uppercase',
+                letterSpacing: '0.12em',
+                color: COLORS.faint 
+              }}
+            >
+              MAP
+            </label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => onUsernameChange(e.target.value)}
+              onKeyDown={handleUsernameKeyDown}
+              onBlur={onUsernameBlur}
+              className="hud-panel px-3 focus:outline-none focus:ring-1"
+              style={{ 
+                width: 200, 
+                height: 36,
+                fontSize: 15,
+                fontFamily: 'IBM Plex Sans',
+                fontWeight: 500,
+                background: COLORS.glass,
+                borderColor: COLORS.line,
+                color: COLORS.paper,
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            />
+          </div>
 
-      <div className="absolute top-4 right-4 z-20">
+          {/* IN THIS GRAPH (search) */}
+          <div className="flex flex-col gap-1">
+            <label 
+              style={{ 
+                fontFamily: 'IBM Plex Mono', 
+                fontSize: 10, 
+                textTransform: 'uppercase',
+                letterSpacing: '0.12em',
+                color: COLORS.faint 
+              }}
+            >
+              IN THIS GRAPH
+            </label>
+            <input
+              type="text"
+              placeholder="Find a repo"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="hud-panel px-3 focus:outline-none focus:ring-1"
+              style={{ 
+                width: 280, 
+                height: 40,
+                fontSize: 13,
+                fontFamily: 'IBM Plex Sans',
+                background: COLORS.glass,
+                borderColor: COLORS.line,
+                color: COLORS.paper
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Count */}
         <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.muted }}>
           {repoCount} repos &nbsp;·&nbsp; since {sinceYear}
         </div>
       </div>
 
+      {/* Search results indicator */}
+      {highlightNodes.size > 0 && (
+        <div 
+          className="absolute top-20 left-4 z-20"
+          style={{ marginLeft: 206 + 24, fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint }}
+        >
+          {highlightNodes.size} found
+        </div>
+      )}
+
+      {/* Legend */}
       <div 
         className="absolute bottom-4 left-4 z-20 hud-panel p-4" 
         style={{ minWidth: 160, background: COLORS.glass, borderColor: COLORS.line }}
@@ -350,6 +412,7 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
         </div>
       </div>
 
+      {/* Hover tooltip */}
       {hoveredNode && (
         <div 
           className="absolute z-20 hud-panel p-4"
