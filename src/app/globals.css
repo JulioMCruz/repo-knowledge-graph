@@ -1,0 +1,92 @@
+@import "tailwindcss";
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+
+:root {
+  --bg: #07090D;
+  --fog: #07090D;
+  --glass: rgba(11, 16, 24, 0.72);
+  --line: #1C2430;
+  --paper: #E9E4D9;
+  --muted: #8B95A1;
+  --faint: #5C6570;
+  
+  --temp-hot: #FF4A2A;
+  --temp-warm: #FF8F3A;
+  --temp-cooling: #E6B35A;
+  --temp-cool: #4F8CA8;
+  --temp-cold: #3A4F8C;
+  
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--paper);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.hud-panel {
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  backdrop-filter: blur(12px);
+}
+
+.legend-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.legend-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.legend-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.data-mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+input[type="text"] {
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+
+input::placeholder {
+  color: var(--faint);
+}

@@ -1,0 +1,12 @@
+# Repository Knowledge Graph Configuration
+
+# sinceYear: Include repos with last activity on or after Jan 1 of this year
+# Default: 2024 (covers 2024, 2025, 2026)
+# Override via SINCE_YEAR env var
+sinceYear: 2024
+
+# Default username for v1
+defaultUsername: JulioMCruz
+
+# Cache TTL in milliseconds (1 hour default)
+cacheTtlMs: 3600000
