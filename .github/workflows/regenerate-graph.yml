@@ -1,0 +1,60 @@
+name: Regenerate Graph Cache
+
+on:
+  workflow_dispatch:
+    inputs:
+      username:
+        description: 'GitHub username to generate graph for'
+        required: false
+        default: 'JulioMCruz'
+      since_year:
+        description: 'Include repos since this year (e.g., 2024)'
+        required: false
+        default: '2024'
+  schedule:
+    - cron: '0 6 * * 0'  # Weekly on Sunday at 6 AM UTC
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Generate graph data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_USERNAME: ${{ github.event.inputs.username || 'JulioMCruz' }}
+          SINCE_YEAR: ${{ github.event.inputs.since_year || '2024' }}
+        run: npm run generate
+      
+      - name: Check for changes
+        id: git-check
+        run: |
+          git add -A
+          if git diff --staged --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Commit and push if changed
+        if: steps.git-check.outputs.changed == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git commit -m "chore: regenerate graph cache [skip ci]"
+          git push

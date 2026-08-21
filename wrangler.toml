@@ -1,0 +1,22 @@
+# Cloudflare Workers configuration for repo-knowledge-graph
+# Deploy command: npx wrangler deploy
+
+name = "repo-knowledge-graph"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Main entry point (created by OpenNext build)
+main = ".open-next/worker.js"
+
+# Assets configuration
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+# Environment variables (add in Cloudflare dashboard or via wrangler secret)
+# GITHUB_TOKEN - optional, for higher rate limits
+
+# KV namespace for caching (create via: wrangler kv:namespace create GRAPH_CACHE)
+# [[kv_namespaces]]
+# binding = "GRAPH_CACHE"
+# id = "your-kv-namespace-id"
