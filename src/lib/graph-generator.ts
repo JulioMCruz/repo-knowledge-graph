@@ -82,6 +82,13 @@ const TEMP_COLORS = {
   cold: '#3A4F8C'
 }
 
+const TEMP_THRESHOLDS = {
+  hot: 0.85,
+  warm: 0.6,
+  cooling: 0.35,
+  cool: 0.15
+}
+
 function calculateWeight(commits: number, stars: number, forks: number): number {
   return Math.log(1 + commits) + 1.2 * Math.log(1 + stars) + Math.log(1 + forks)
 }
@@ -114,10 +121,10 @@ function calculateTemperature(pushedAt: string | null, sinceDate: Date, now: Dat
 }
 
 function temperatureToColor(temperature: number): string {
-  if (temperature >= 0.85) return TEMP_COLORS.hot
-  if (temperature >= 0.6) return TEMP_COLORS.warm
-  if (temperature >= 0.35) return TEMP_COLORS.cooling
-  if (temperature >= 0.15) return TEMP_COLORS.cool
+  if (temperature >= TEMP_THRESHOLDS.hot) return TEMP_COLORS.hot
+  if (temperature >= TEMP_THRESHOLDS.warm) return TEMP_COLORS.warm
+  if (temperature >= TEMP_THRESHOLDS.cooling) return TEMP_COLORS.cooling
+  if (temperature >= TEMP_THRESHOLDS.cool) return TEMP_COLORS.cool
   return TEMP_COLORS.cold
 }
 

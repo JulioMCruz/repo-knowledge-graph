@@ -5,7 +5,6 @@
 
 :root {
   --bg: #07090D;
-  --fog: #07090D;
   --glass: rgba(11, 16, 24, 0.72);
   --line: #1C2430;
   --paper: #E9E4D9;
@@ -88,5 +87,5 @@ input[type="text"] {
 }
 
 input::placeholder {
-  color: var(--faint);
+  color: var(--muted);
 }
