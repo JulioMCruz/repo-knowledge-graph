@@ -309,7 +309,7 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
           TEMPERATURE
         </div>
         <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint, marginBottom: 12 }}>
-          last push
+          last push &nbsp;·&nbsp; since {sinceYear}
         </div>
         
         <div className="flex flex-col gap-2">
