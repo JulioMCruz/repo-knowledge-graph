@@ -346,32 +346,42 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
           last push &nbsp;·&nbsp; since {sinceYear}
         </div>
         
+        {/* Continuous temp bar */}
+        <div 
+          style={{ 
+            height: 8, 
+            borderRadius: 4,
+            background: `linear-gradient(to right, ${COLORS.tempCold}, ${COLORS.tempCool}, ${COLORS.tempCooling}, ${COLORS.tempWarm}, ${COLORS.tempHot})`,
+            marginBottom: 10
+          }} 
+        />
+        
         {/* Temperature ticks */}
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full" style={{ background: COLORS.tempHot, boxShadow: `0 0 6px ${COLORS.tempHot}` }} />
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.muted }}>Hot</span>
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint, marginLeft: 'auto' }}>this week</span>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full" style={{ background: COLORS.tempHot, boxShadow: `0 0 4px ${COLORS.tempHot}` }} />
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.muted }}>Hot</span>
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.faint, marginLeft: 'auto' }}>this week</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full" style={{ background: COLORS.tempWarm }} />
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.muted }}>Warm</span>
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint, marginLeft: 'auto' }}>this month</span>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full" style={{ background: COLORS.tempWarm }} />
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.muted }}>Warm</span>
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.faint, marginLeft: 'auto' }}>this month</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full" style={{ background: COLORS.tempCooling }} />
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.muted }}>Cooling</span>
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint, marginLeft: 'auto' }}>this quarter</span>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full" style={{ background: COLORS.tempCooling }} />
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.muted }}>Cooling</span>
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.faint, marginLeft: 'auto' }}>this quarter</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full" style={{ background: COLORS.tempCool }} />
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.muted }}>Cool</span>
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint, marginLeft: 'auto' }}>this year</span>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full" style={{ background: COLORS.tempCool }} />
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.muted }}>Cool</span>
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.faint, marginLeft: 'auto' }}>this year</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full" style={{ background: COLORS.tempCold }} />
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.muted }}>Cold</span>
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint, marginLeft: 'auto' }}>stale</span>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full" style={{ background: COLORS.tempCold }} />
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.muted }}>Cold</span>
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.faint, marginLeft: 'auto' }}>stale</span>
           </div>
         </div>
         
