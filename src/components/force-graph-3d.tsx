@@ -16,10 +16,6 @@ const ForceGraph3D = dynamic(() => import('react-force-graph-3d'), {
 interface ForceGraph3DViewProps {
   data: GraphData
   sinceYear: number
-  username: string
-  onUsernameChange: (value: string) => void
-  onUsernameSubmit: () => void
-  onUsernameBlur: () => void
 }
 
 interface GraphNode {
@@ -99,14 +95,7 @@ function interpolateColor(color1: string, color2: string, factor: number): strin
   return `rgb(${r}, ${g}, ${b})`
 }
 
-export function ForceGraph3DView({ 
-  data, 
-  sinceYear,
-  username,
-  onUsernameChange,
-  onUsernameSubmit,
-  onUsernameBlur
-}: ForceGraph3DViewProps) {
+export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
   const fgRef = useRef<{ 
     cameraPosition: (pos: { x: number; y: number; z: number }, lookAt?: { x: number; y: number; z: number }, ms?: number) => void
     graph2ScreenCoords: (x: number, y: number, z: number) => { x: number; y: number }
@@ -117,6 +106,8 @@ export function ForceGraph3DView({
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [highlightNodes, setHighlightNodes] = useState<Set<string>>(new Set())
+
+  const userNodes = useMemo(() => data.nodes.filter(n => !n.isExternal), [data.nodes])
 
   useEffect(() => {
     function updateDimensions() {
@@ -142,7 +133,7 @@ export function ForceGraph3DView({
     const query = searchQuery.toLowerCase()
     const matches = new Set<string>()
     
-    for (const node of data.nodes) {
+    for (const node of userNodes) {
       if (
         node.name.toLowerCase().includes(query) ||
         node.owner.toLowerCase().includes(query) ||
@@ -153,7 +144,7 @@ export function ForceGraph3DView({
     }
     
     setHighlightNodes(matches)
-  }, [searchQuery, data.nodes])
+  }, [searchQuery, userNodes])
 
   useEffect(() => {
     if (fgRef.current && data.nodes.length > 0) {
@@ -290,15 +281,6 @@ export function ForceGraph3DView({
     return mesh
   }, [getNodeOpacity, getNodeBloom, hoveredNode, highlightNodes])
 
-  const handleUsernameKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      onUsernameSubmit()
-    }
-  }, [onUsernameSubmit])
-
-  const repoCount = data.nodes.filter(n => !n.isExternal).length
-
   const fieldStyle = {
     background: COLORS.glass,
     border: `1px solid ${COLORS.line}`,
@@ -314,87 +296,43 @@ export function ForceGraph3DView({
 
   return (
     <div ref={containerRef} className="relative w-full h-full" style={{ background: COLORS.bg }}>
-      {/* Top HUD: MAP + IN THIS GRAPH + Count */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex items-end justify-between">
-        <div className="flex items-end gap-6">
-          {/* MAP (username) */}
-          <div className="flex flex-col gap-1">
-            <label 
-              style={{ 
-                fontFamily: 'IBM Plex Mono', 
-                fontSize: 10, 
-                textTransform: 'uppercase',
-                letterSpacing: '0.12em',
-                color: COLORS.faint 
-              }}
-            >
-              MAP
-            </label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => onUsernameChange(e.target.value)}
-              onKeyDown={handleUsernameKeyDown}
-              onBlur={onUsernameBlur}
-              style={{ 
-                ...fieldStyle,
-                width: 200, 
-                height: 36,
-                padding: '0 12px',
-                fontSize: 15,
-                fontFamily: 'IBM Plex Sans',
-                fontWeight: 500,
-                color: COLORS.paper
-              }}
-            />
-          </div>
-
-          {/* IN THIS GRAPH (search) */}
-          <div className="flex flex-col gap-1">
-            <label 
-              style={{ 
-                fontFamily: 'IBM Plex Mono', 
-                fontSize: 10, 
-                textTransform: 'uppercase',
-                letterSpacing: '0.12em',
-                color: COLORS.faint 
-              }}
-            >
-              IN THIS GRAPH
-            </label>
-            <input
-              type="text"
-              placeholder="Find a repo"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ 
-                ...fieldStyle,
-                width: 280, 
-                height: 36,
-                padding: '0 12px',
-                fontSize: 13,
-                fontFamily: 'IBM Plex Sans',
-                color: COLORS.paper
-              }}
-            />
-          </div>
+      {/* IN THIS GRAPH search - positioned next to MAP which is in page.tsx */}
+      <div className="absolute top-4 z-20" style={{ left: 200 + 16 + 24 }}>
+        <div className="flex flex-col gap-1">
+          <label 
+            style={{ 
+              fontFamily: 'IBM Plex Mono', 
+              fontSize: 10, 
+              textTransform: 'uppercase',
+              letterSpacing: '0.12em',
+              color: COLORS.faint 
+            }}
+          >
+            IN THIS GRAPH
+          </label>
+          <input
+            type="text"
+            placeholder="Find a repo"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ 
+              ...fieldStyle,
+              width: 280, 
+              height: 36,
+              padding: '0 12px',
+              fontSize: 13,
+              fontFamily: 'IBM Plex Sans',
+              color: COLORS.paper,
+              '::placeholder': { color: COLORS.muted }
+            } as React.CSSProperties}
+          />
         </div>
-
-        {/* Count */}
-        <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.muted }}>
-          {repoCount} repos &nbsp;·&nbsp; since {sinceYear}
-        </div>
+        {highlightNodes.size > 0 && (
+          <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint, marginTop: 4 }}>
+            {highlightNodes.size} found
+          </div>
+        )}
       </div>
-
-      {/* Search results indicator */}
-      {highlightNodes.size > 0 && (
-        <div 
-          className="absolute top-20 left-4 z-20"
-          style={{ marginLeft: 206 + 24, fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint }}
-        >
-          {highlightNodes.size} found
-        </div>
-      )}
 
       {/* Legend */}
       <div 
@@ -558,6 +496,12 @@ export function ForceGraph3DView({
         enableNavigationControls={true}
         controlType="orbit"
       />
+
+      <style jsx>{`
+        input::placeholder {
+          color: ${COLORS.muted};
+        }
+      `}</style>
     </div>
   )
 }

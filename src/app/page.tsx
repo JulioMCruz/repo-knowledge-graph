@@ -16,6 +16,17 @@ const ForceGraph3DView = dynamic(
   }
 )
 
+const COLORS = {
+  bg: '#07090D',
+  glass: 'rgba(11, 16, 24, 0.72)',
+  line: '#1C2430',
+  paper: '#E9E4D9',
+  muted: '#8B95A1',
+  faint: '#5C6570',
+  tempHot: '#FF4A2A',
+  tempCool: '#4F8CA8'
+}
+
 const DEFAULT_USERNAME = 'JulioMCruz'
 const DEFAULT_SINCE_YEAR = 2024
 
@@ -62,10 +73,17 @@ export default function Home() {
 
   const handleUsernameSubmit = useCallback(() => {
     const trimmed = inputValue.trim()
-    if (trimmed && trimmed !== username) {
+    if (trimmed) {
       loadGraph(trimmed, sinceYear)
     }
-  }, [inputValue, username, sinceYear, loadGraph])
+  }, [inputValue, sinceYear, loadGraph])
+
+  const handleUsernameKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleUsernameSubmit()
+    }
+  }, [handleUsernameSubmit])
 
   const handleUsernameBlur = useCallback(() => {
     if (!inputValue.trim()) {
@@ -73,34 +91,110 @@ export default function Home() {
     }
   }, [inputValue, username])
 
+  const fieldStyle = {
+    background: COLORS.glass,
+    border: `1px solid ${COLORS.line}`,
+    borderRadius: 8,
+    outline: 'none'
+  }
+
+  const repoCount = graphData ? graphData.nodes.filter(n => !n.isExternal).length : 0
+
   return (
-    <main className="h-screen w-screen overflow-hidden relative" style={{ background: '#07090D' }}>
+    <main className="h-screen w-screen overflow-hidden relative" style={{ background: COLORS.bg }}>
+      {/* Top HUD - always visible */}
+      <div className="absolute top-4 left-4 right-4 z-30 flex items-end justify-between">
+        <div className="flex items-end gap-6">
+          {/* MAP (username) - always available */}
+          <div className="flex flex-col gap-1">
+            <label 
+              style={{ 
+                fontFamily: 'IBM Plex Mono', 
+                fontSize: 10, 
+                textTransform: 'uppercase',
+                letterSpacing: '0.12em',
+                color: COLORS.faint 
+              }}
+            >
+              MAP
+            </label>
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleUsernameKeyDown}
+              onBlur={handleUsernameBlur}
+              disabled={loading}
+              style={{ 
+                ...fieldStyle,
+                width: 200, 
+                height: 36,
+                padding: '0 12px',
+                fontSize: 15,
+                fontFamily: 'IBM Plex Sans',
+                fontWeight: 500,
+                color: COLORS.paper,
+                opacity: loading ? 0.6 : 1
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Count */}
+        <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.muted }}>
+          {repoCount} repos &nbsp;·&nbsp; since {sinceYear}
+        </div>
+      </div>
+
+      {/* Loading overlay */}
       {loading && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center" style={{ background: 'rgba(7, 9, 13, 0.9)' }}>
-          <div className="hud-panel p-6 text-center">
-            <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: '#8B95A1', marginBottom: 8 }}>
+        <div className="absolute inset-0 z-20 flex items-center justify-center" style={{ background: 'rgba(7, 9, 13, 0.9)' }}>
+          <div style={{ 
+            background: COLORS.glass, 
+            border: `1px solid ${COLORS.line}`, 
+            borderRadius: 10,
+            padding: 24,
+            textAlign: 'center'
+          }}>
+            <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.muted, marginBottom: 8 }}>
               Loading @{inputValue}...
             </div>
-            <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: '#5C6570' }}>
+            <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint }}>
               Repos with activity since {sinceYear}
             </div>
           </div>
         </div>
       )}
 
+      {/* Error overlay */}
       {error && !loading && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center" style={{ background: 'rgba(7, 9, 13, 0.9)' }}>
-          <div className="hud-panel p-6 text-center max-w-sm">
-            <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: '#FF4A2A', marginBottom: 8 }}>
+        <div className="absolute inset-0 z-20 flex items-center justify-center" style={{ background: 'rgba(7, 9, 13, 0.9)' }}>
+          <div style={{ 
+            background: COLORS.glass, 
+            border: `1px solid ${COLORS.line}`, 
+            borderRadius: 10,
+            padding: 24,
+            textAlign: 'center',
+            maxWidth: 320
+          }}>
+            <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.tempHot, marginBottom: 8 }}>
               Error loading graph
             </div>
-            <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: '#5C6570', marginBottom: 16 }}>
+            <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint, marginBottom: 16 }}>
               {error}
             </div>
             <button
               onClick={() => loadGraph(username, sinceYear)}
-              className="hud-panel px-4 py-2 hover:bg-[#1C2430] transition-colors"
-              style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: '#4F8CA8' }}
+              style={{ 
+                background: COLORS.glass, 
+                border: `1px solid ${COLORS.line}`, 
+                borderRadius: 8,
+                padding: '8px 16px',
+                fontFamily: 'IBM Plex Mono', 
+                fontSize: 11, 
+                color: COLORS.tempCool,
+                cursor: 'pointer'
+              }}
             >
               Retry
             </button>
@@ -108,26 +202,24 @@ export default function Home() {
         </div>
       )}
 
+      {/* Graph */}
       {graphData && !loading && (
         <Suspense fallback={
-          <div className="flex items-center justify-center h-full w-full" style={{ background: '#07090D' }}>
-            <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: '#8B95A1' }}>Rendering...</div>
+          <div className="flex items-center justify-center h-full w-full" style={{ background: COLORS.bg }}>
+            <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.muted }}>Rendering...</div>
           </div>
         }>
           <ForceGraph3DView 
             data={graphData} 
             sinceYear={sinceYear}
-            username={inputValue}
-            onUsernameChange={setInputValue}
-            onUsernameSubmit={handleUsernameSubmit}
-            onUsernameBlur={handleUsernameBlur}
           />
         </Suspense>
       )}
 
+      {/* Empty state */}
       {!graphData && !loading && !error && (
         <div className="flex items-center justify-center h-full w-full">
-          <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: '#5C6570' }}>
+          <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint }}>
             Enter a GitHub username to view their map
           </div>
         </div>
