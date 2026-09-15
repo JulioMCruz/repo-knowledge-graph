@@ -23,9 +23,8 @@ export interface RepoNode {
   temperature: number
   color: string
   opacity: number
-  isExternal?: boolean
   isContribution?: boolean
-  relationship: 'owned' | 'org-member' | 'contributed' | 'external'
+  relationship: 'owned' | 'org-member' | 'contributed'
 }
 
 export interface GraphEdge {
@@ -47,7 +46,6 @@ export interface GraphData {
     ownedRepos: number
     orgRepos: number
     contributedRepos: number
-    externalNodes: number
     totalEdges: number
     missingCommitCounts: number
   }
