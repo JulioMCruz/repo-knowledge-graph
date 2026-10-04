@@ -85,16 +85,29 @@ function getTemperatureLabel(temp: number): string {
   return 'Cold'
 }
 
+function interpolateColor(color1: string, color2: string, factor: number): string {
+  const hex = (c: string) => parseInt(c, 16)
+  const r1 = hex(color1.slice(1, 3)), g1 = hex(color1.slice(3, 5)), b1 = hex(color1.slice(5, 7))
+  const r2 = hex(color2.slice(1, 3)), g2 = hex(color2.slice(3, 5)), b2 = hex(color2.slice(5, 7))
+  const r = Math.round(r1 + (r2 - r1) * factor)
+  const g = Math.round(g1 + (g2 - g1) * factor)
+  const b = Math.round(b1 + (b2 - b1) * factor)
+  return `rgb(${r}, ${g}, ${b})`
+}
+
 export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
   const fgRef = useRef<{ 
     cameraPosition: (pos: { x: number; y: number; z: number }, lookAt?: { x: number; y: number; z: number }, ms?: number) => void
-    scene: () => unknown
+    graph2ScreenCoords: (x: number, y: number, z: number) => { x: number; y: number }
   } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null)
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [highlightNodes, setHighlightNodes] = useState<Set<string>>(new Set())
+
+  const userNodes = useMemo(() => data.nodes.filter(n => !n.isExternal), [data.nodes])
 
   useEffect(() => {
     function updateDimensions() {
@@ -120,7 +133,7 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
     const query = searchQuery.toLowerCase()
     const matches = new Set<string>()
     
-    for (const node of data.nodes) {
+    for (const node of userNodes) {
       if (
         node.name.toLowerCase().includes(query) ||
         node.owner.toLowerCase().includes(query) ||
@@ -131,7 +144,7 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
     }
     
     setHighlightNodes(matches)
-  }, [searchQuery, data.nodes])
+  }, [searchQuery, userNodes])
 
   useEffect(() => {
     if (fgRef.current && data.nodes.length > 0) {
@@ -150,6 +163,15 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
       }
     }
   }, [data.nodes])
+
+  useEffect(() => {
+    if (hoveredNode && fgRef.current && hoveredNode.x !== undefined && hoveredNode.y !== undefined && hoveredNode.z !== undefined) {
+      const coords = fgRef.current.graph2ScreenCoords(hoveredNode.x, hoveredNode.y, hoveredNode.z)
+      setTooltipPos({ x: coords.x + 12, y: coords.y })
+    } else {
+      setTooltipPos(null)
+    }
+  }, [hoveredNode])
 
   const graphData = useMemo(() => ({
     nodes: data.nodes as GraphNode[],
@@ -204,8 +226,13 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
     if (!sourceNode || !targetNode) return 'rgba(28, 36, 48, 0.12)'
     
     const avgTemp = (sourceNode.temperature + targetNode.temperature) / 2
+    const mixedColor = interpolateColor(sourceNode.color, targetNode.color, 0.5)
     const opacity = 0.12 + (avgTemp * 0.06)
     
+    const match = mixedColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/)
+    if (match) {
+      return `rgba(${match[1]}, ${match[2]}, ${match[3]}, ${Math.min(opacity, 0.18)})`
+    }
     return `rgba(28, 36, 48, ${Math.min(opacity, 0.18)})`
   }, [data.nodes])
 
@@ -254,11 +281,23 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
     return mesh
   }, [getNodeOpacity, getNodeBloom, hoveredNode, highlightNodes])
 
-  const repoCount = data.nodes.filter(n => !n.isExternal).length
+  const fieldStyle = {
+    background: COLORS.glass,
+    border: `1px solid ${COLORS.line}`,
+    borderRadius: 8,
+    outline: 'none'
+  }
+
+  const panelStyle = {
+    background: COLORS.glass,
+    border: `1px solid ${COLORS.line}`,
+    borderRadius: 10
+  }
 
   return (
     <div ref={containerRef} className="relative w-full h-full" style={{ background: COLORS.bg }}>
-      <div className="absolute top-4 left-4 z-20 flex items-start gap-6">
+      {/* IN THIS GRAPH search - positioned next to MAP which is in page.tsx */}
+      <div className="absolute top-4 z-20" style={{ left: 200 + 16 + 24 }}>
         <div className="flex flex-col gap-1">
           <label 
             style={{ 
@@ -276,34 +315,29 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
             placeholder="Find a repo"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="hud-panel px-3 py-2 focus:outline-none focus:ring-1"
             style={{ 
+              ...fieldStyle,
               width: 280, 
-              height: 40,
+              height: 36,
+              padding: '0 12px',
               fontSize: 13,
               fontFamily: 'IBM Plex Sans',
-              background: COLORS.glass,
-              borderColor: COLORS.line,
-              color: COLORS.paper
-            }}
+              color: COLORS.paper,
+              '::placeholder': { color: COLORS.muted }
+            } as React.CSSProperties}
           />
-          {highlightNodes.size > 0 && (
-            <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint }}>
-              {highlightNodes.size} found
-            </div>
-          )}
         </div>
+        {highlightNodes.size > 0 && (
+          <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint, marginTop: 4 }}>
+            {highlightNodes.size} found
+          </div>
+        )}
       </div>
 
-      <div className="absolute top-4 right-4 z-20">
-        <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.muted }}>
-          {repoCount} repos &nbsp;·&nbsp; since {sinceYear}
-        </div>
-      </div>
-
+      {/* Legend */}
       <div 
-        className="absolute bottom-4 left-4 z-20 hud-panel p-4" 
-        style={{ minWidth: 160, background: COLORS.glass, borderColor: COLORS.line }}
+        className="absolute bottom-4 left-4 z-20 p-4" 
+        style={{ ...panelStyle, minWidth: 180 }}
       >
         <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em', color: COLORS.muted, marginBottom: 4 }}>
           TEMPERATURE
@@ -312,54 +346,95 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
           last push &nbsp;·&nbsp; since {sinceYear}
         </div>
         
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full" style={{ background: COLORS.tempHot, boxShadow: `0 0 8px ${COLORS.tempHot}` }} />
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.muted }}>Hot</span>
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint, marginLeft: 'auto' }}>this week</span>
+        {/* Continuous temp bar */}
+        <div 
+          style={{ 
+            height: 8, 
+            borderRadius: 4,
+            background: `linear-gradient(to right, ${COLORS.tempCold}, ${COLORS.tempCool}, ${COLORS.tempCooling}, ${COLORS.tempWarm}, ${COLORS.tempHot})`,
+            marginBottom: 10
+          }} 
+        />
+        
+        {/* Temperature ticks */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full" style={{ background: COLORS.tempHot, boxShadow: `0 0 4px ${COLORS.tempHot}` }} />
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.muted }}>Hot</span>
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.faint, marginLeft: 'auto' }}>this week</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full" style={{ background: COLORS.tempWarm }} />
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.muted }}>Warm</span>
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint, marginLeft: 'auto' }}>this month</span>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full" style={{ background: COLORS.tempWarm }} />
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.muted }}>Warm</span>
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.faint, marginLeft: 'auto' }}>this month</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full" style={{ background: COLORS.tempCooling }} />
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.muted }}>Cooling</span>
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint, marginLeft: 'auto' }}>this quarter</span>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full" style={{ background: COLORS.tempCooling }} />
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.muted }}>Cooling</span>
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.faint, marginLeft: 'auto' }}>this quarter</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full" style={{ background: COLORS.tempCool }} />
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.muted }}>Cool</span>
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint, marginLeft: 'auto' }}>this year</span>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full" style={{ background: COLORS.tempCool }} />
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.muted }}>Cool</span>
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.faint, marginLeft: 'auto' }}>this year</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full" style={{ background: COLORS.tempCold }} />
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.muted }}>Cold</span>
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint, marginLeft: 'auto' }}>stale</span>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full" style={{ background: COLORS.tempCold }} />
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.muted }}>Cold</span>
+            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: COLORS.faint, marginLeft: 'auto' }}>stale</span>
           </div>
         </div>
         
         <div className="mt-4 pt-3" style={{ borderTop: `1px solid ${COLORS.line}` }}>
-          <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em', color: COLORS.muted, marginBottom: 4 }}>
+          <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em', color: COLORS.muted, marginBottom: 8 }}>
             SIZE
           </div>
-          <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: COLORS.faint }}>
-            activity
+          {/* Three hollow circles: quiet / active / loud */}
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col items-center gap-1">
+              <div style={{ 
+                width: 12, 
+                height: 12, 
+                borderRadius: '50%', 
+                border: `1.5px solid ${COLORS.muted}`,
+                background: 'transparent'
+              }} />
+              <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: COLORS.faint }}>quiet</span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <div style={{ 
+                width: 18, 
+                height: 18, 
+                borderRadius: '50%', 
+                border: `1.5px solid ${COLORS.muted}`,
+                background: 'transparent'
+              }} />
+              <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: COLORS.faint }}>active</span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <div style={{ 
+                width: 26, 
+                height: 26, 
+                borderRadius: '50%', 
+                border: `1.5px solid ${COLORS.muted}`,
+                background: 'transparent'
+              }} />
+              <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: COLORS.faint }}>loud</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {hoveredNode && (
+      {/* Hover tooltip - follows node */}
+      {hoveredNode && tooltipPos && (
         <div 
-          className="absolute z-20 hud-panel p-4"
+          className="absolute z-20 p-4"
           style={{ 
-            top: '50%',
-            right: 16,
-            transform: 'translateY(-50%)',
-            maxWidth: 280,
-            background: COLORS.glass,
-            borderColor: COLORS.line
+            ...panelStyle,
+            left: Math.min(tooltipPos.x, dimensions.width - 260),
+            top: Math.max(16, Math.min(tooltipPos.y - 80, dimensions.height - 200)),
+            maxWidth: 240,
+            pointerEvents: 'none'
           }}
         >
           <h3 
@@ -415,7 +490,7 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
             style={{ 
               fontFamily: 'IBM Plex Mono', 
               fontSize: 11, 
-              color: COLORS.tempCool, 
+              color: COLORS.paper, 
               paddingTop: 8,
               borderTop: `1px solid ${COLORS.line}`
             }}
@@ -445,6 +520,12 @@ export function ForceGraph3DView({ data, sinceYear }: ForceGraph3DViewProps) {
         enableNavigationControls={true}
         controlType="orbit"
       />
+
+      <style jsx>{`
+        input::placeholder {
+          color: ${COLORS.muted};
+        }
+      `}</style>
     </div>
   )
 }
